@@ -23,7 +23,9 @@ def init_db():
             timestamp TEXT NOT NULL,
             ping_avg REAL,
             download_mbps REAL,
-            upload_mbps REAL
+            upload_mbps REAL,
+            jitter REAL,
+            packet_loss REAL
         )
     """)
     conn.commit()
@@ -32,7 +34,7 @@ def init_db():
 
 # === Executa o speedtest oficial ===
 def executar_speedtest():
-    """Executa o speedtest oficial da Ookla e retorna ping, download e upload em Mbps."""
+    """Executa o speedtest oficial da Ookla e retorna ping, download, upload, jitter e packet loss."""
     try:
         result = subprocess.run(
             ["speedtest", "--accept-license", "--accept-gdpr", "-f", "json"],
@@ -41,15 +43,17 @@ def executar_speedtest():
 
         if result.returncode != 0:
             print(f"[ERRO] Speedtest falhou: {result.stderr.strip()}")
-            return None, None, None
+            return None, None, None, None, None
 
         data = json.loads(result.stdout)
 
         ping = data["ping"]["latency"]
+        jitter = data["ping"].get("jitter", 0)
         download = data["download"]["bandwidth"] * 8 / 1e6  # bits/s → Mbps
         upload = data["upload"]["bandwidth"] * 8 / 1e6
+        packet_loss = data.get("packetLoss", 0)
 
-        return ping, download, upload
+        return ping, download, upload, jitter, packet_loss
 
     except FileNotFoundError:
         print("[ERRO] O executável 'speedtest' não foi encontrado.")
@@ -62,25 +66,25 @@ def executar_speedtest():
     except Exception as e:
         print(f"[ERRO EXECUTAR_SPEEDTEST] {e}")
 
-    return None, None, None
+    return None, None, None, None, None
 
 # === Coletor de dados (usando Ookla) ===
 def collect_metrics():
     while True:
         try:
             print("[INFO] Executando speedtest oficial...")
-            ping, download, upload = executar_speedtest()
+            ping, download, upload, jitter, packet_loss = executar_speedtest()
 
-            if ping and download and upload:
+            if ping is not None and download is not None and upload is not None:
                 conn = sqlite3.connect(DB_FILE)
                 cursor = conn.cursor()
                 cursor.execute(
-                    "INSERT INTO metrics (timestamp, ping_avg, download_mbps, upload_mbps) VALUES (?, ?, ?, ?)",
-                    (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), ping, download, upload)
+                    "INSERT INTO metrics (timestamp, ping_avg, download_mbps, upload_mbps, jitter, packet_loss) VALUES (?, ?, ?, ?, ?, ?)",
+                    (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), ping, download, upload, jitter, packet_loss)
                 )
                 conn.commit()
                 conn.close()
-                print(f"[OK] Registro salvo: ping={ping:.2f} ms | ↓ {download:.2f} Mbps | ↑ {upload:.2f} Mbps")
+                print(f"[OK] Registro salvo: ping={ping:.2f} ms | jitter={jitter:.2f} ms | ↓ {download:.2f} Mbps | ↑ {upload:.2f} Mbps | perda={packet_loss:.2f}%")
             else:
                 print("[WARN] Speedtest retornou dados incompletos.")
 
@@ -119,13 +123,54 @@ def data():
     conn.close()
 
     if df.empty:
-        return jsonify({"timestamps": [], "ping": [], "download": [], "upload": []})
+        return jsonify({
+            "timestamps": [], 
+            "ping": [], 
+            "download": [], 
+            "upload": [],
+            "jitter": [],
+            "packet_loss": [],
+            "stats": {
+                "download": {"min": 0, "max": 0},
+                "upload": {"min": 0, "max": 0},
+                "ping": {"min": 0, "max": 0},
+                "jitter": {"min": 0, "max": 0},
+                "packet_loss": {"min": 0, "max": 0}
+            }
+        })
+
+    # Calcular estatísticas
+    stats = {
+        "download": {
+            "min": float(df["download_mbps"].min()),
+            "max": float(df["download_mbps"].max())
+        },
+        "upload": {
+            "min": float(df["upload_mbps"].min()),
+            "max": float(df["upload_mbps"].max())
+        },
+        "ping": {
+            "min": float(df["ping_avg"].min()),
+            "max": float(df["ping_avg"].max())
+        },
+        "jitter": {
+            "min": float(df["jitter"].min()) if "jitter" in df.columns else 0,
+            "max": float(df["jitter"].max()) if "jitter" in df.columns else 0
+        },
+        "packet_loss": {
+            "min": float(df["packet_loss"].min()) if "packet_loss" in df.columns else 0,
+            "max": float(df["packet_loss"].max()) if "packet_loss" in df.columns else 0
+        }
+    }
 
     return jsonify({
         "timestamps": df["timestamp"].tolist(),
         "ping": df["ping_avg"].tolist(),
         "download": df["download_mbps"].tolist(),
-        "upload": df["upload_mbps"].tolist()
+        "upload": df["upload_mbps"].tolist(),
+        "jitter": df["jitter"].tolist() if "jitter" in df.columns else [],
+        "packet_loss": df["packet_loss"].tolist() if "packet_loss" in df.columns else [],
+        "stats": stats
     })
 
 # === Inicialização ===

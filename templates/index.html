@@ -13,6 +13,7 @@
             --accent-blue: #38bdf8;
             --accent-red: #f87171;
             --accent-green: #4ade80;
+            --accent-yellow: #fbbf24;
         }
 
         body {
@@ -66,19 +67,115 @@
             color: #000;
         }
 
-        .chart-container {
+        .main-content {
+            display: flex;
+            gap: 20px;
             width: 90%;
-            max-width: 1000px;
+            max-width: 1400px;
+            margin-bottom: 20px;
+        }
+
+        .charts-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .stats-panel {
+            width: 300px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            height: fit-content;
+        }
+
+        .stats-panel h2 {
+            margin-top: 0;
+            font-size: 1.3em;
+            color: var(--accent-blue);
+            border-bottom: 2px solid #334155;
+            padding-bottom: 10px;
+        }
+
+        .stat-item {
+            margin-bottom: 20px;
+        }
+
+        .stat-item h3 {
+            margin: 0 0 8px 0;
+            font-size: 0.9em;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-values {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .stat-box {
+            flex: 1;
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.75em;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 1.2em;
+            font-weight: bold;
+        }
+
+        .stat-value.download {
+            color: var(--accent-blue);
+        }
+
+        .stat-value.upload {
+            color: var(--accent-green);
+        }
+
+        .stat-value.ping {
+            color: var(--accent-red);
+        }
+
+        .stat-value.jitter {
+            color: var(--accent-yellow);
+        }
+
+        .stat-value.packet-loss {
+            color: #f472b6;
+        }
+
+        .chart-container {
             background: var(--bg-card);
             border-radius: 12px;
             padding: 10px 20px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-            margin-bottom: 20px;
         }
 
         canvas {
             width: 100% !important;
             height: 400px !important;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .stats-panel {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -97,11 +194,95 @@
         <button onclick="setRange('total')" id="btn-total">Total</button>
     </div>
 
-    <div class="chart-container">
-        <canvas id="chartSpeed"></canvas>
-    </div>
-    <div class="chart-container">
-        <canvas id="chartPing"></canvas>
+    <div class="main-content">
+        <div class="charts-section">
+            <div class="chart-container">
+                <canvas id="chartSpeed"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="chartPing"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="chartJitter"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="chartPacketLoss"></canvas>
+            </div>
+        </div>
+
+        <div class="stats-panel">
+            <h2>📊 Estatísticas</h2>
+            
+            <div class="stat-item">
+                <h3>Download</h3>
+                <div class="stat-values">
+                    <div class="stat-box">
+                        <div class="stat-label">Mínimo</div>
+                        <div class="stat-value download" id="download-min">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Máximo</div>
+                        <div class="stat-value download" id="download-max">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-item">
+                <h3>Upload</h3>
+                <div class="stat-values">
+                    <div class="stat-box">
+                        <div class="stat-label">Mínimo</div>
+                        <div class="stat-value upload" id="upload-min">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Máximo</div>
+                        <div class="stat-value upload" id="upload-max">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-item">
+                <h3>Latência (Ping)</h3>
+                <div class="stat-values">
+                    <div class="stat-box">
+                        <div class="stat-label">Mínimo</div>
+                        <div class="stat-value ping" id="ping-min">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Máximo</div>
+                        <div class="stat-value ping" id="ping-max">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-item">
+                <h3>Jitter</h3>
+                <div class="stat-values">
+                    <div class="stat-box">
+                        <div class="stat-label">Mínimo</div>
+                        <div class="stat-value jitter" id="jitter-min">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Máximo</div>
+                        <div class="stat-value jitter" id="jitter-max">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="stat-item">
+                <h3>Perda de Pacotes</h3>
+                <div class="stat-values">
+                    <div class="stat-box">
+                        <div class="stat-label">Mínimo</div>
+                        <div class="stat-value packet-loss" id="packet-loss-min">--</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Máximo</div>
+                        <div class="stat-value packet-loss" id="packet-loss-max">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -140,6 +321,45 @@
             options: chartOptions
         });
 
+        const chartJitter = new Chart(document.getElementById("chartJitter"), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Jitter (ms)', data: [], borderColor: '#fbbf24', backgroundColor: 'rgba(251,191,36,0.2)', tension: 0.3, fill: true }
+                ]
+            },
+            options: chartOptions
+        });
+
+        const chartPacketLoss = new Chart(document.getElementById("chartPacketLoss"), {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Perda de Pacotes (%)', data: [], borderColor: '#f472b6', backgroundColor: 'rgba(244,114,182,0.2)', tension: 0.3, fill: true }
+                ]
+            },
+            options: chartOptions
+        });
+
+        function updateStats(stats) {
+            document.getElementById('download-min').textContent = stats.download.min.toFixed(2) + ' Mbps';
+            document.getElementById('download-max').textContent = stats.download.max.toFixed(2) + ' Mbps';
+            
+            document.getElementById('upload-min').textContent = stats.upload.min.toFixed(2) + ' Mbps';
+            document.getElementById('upload-max').textContent = stats.upload.max.toFixed(2) + ' Mbps';
+            
+            document.getElementById('ping-min').textContent = stats.ping.min.toFixed(2) + ' ms';
+            document.getElementById('ping-max').textContent = stats.ping.max.toFixed(2) + ' ms';
+            
+            document.getElementById('jitter-min').textContent = stats.jitter.min.toFixed(2) + ' ms';
+            document.getElementById('jitter-max').textContent = stats.jitter.max.toFixed(2) + ' ms';
+            
+            document.getElementById('packet-loss-min').textContent = stats.packet_loss.min.toFixed(2) + '%';
+            document.getElementById('packet-loss-max').textContent = stats.packet_loss.max.toFixed(2) + '%';
+        }
+
         async function updateCharts() {
             const res = await fetch(`/data?range=${currentRange}`);
             const data = await res.json();
@@ -152,6 +372,18 @@
             chartPing.data.labels = data.timestamps;
             chartPing.data.datasets[0].data = data.ping;
             chartPing.update();
+
+            chartJitter.data.labels = data.timestamps;
+            chartJitter.data.datasets[0].data = data.jitter || [];
+            chartJitter.update();
+
+            chartPacketLoss.data.labels = data.timestamps;
+            chartPacketLoss.data.datasets[0].data = data.packet_loss || [];
+            chartPacketLoss.update();
+
+            if (data.stats) {
+                updateStats(data.stats);
+            }
         }
 
         function setRange(range) {
